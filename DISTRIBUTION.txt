@@ -1,0 +1,15 @@
+Soundee binary distribution
+---------------------------
+Soundee includes JUCE modules under the GNU Affero General Public License
+version 3. The combined Soundee application is distributed under AGPLv3.
+Soundee's original source files are also available under the MIT license in
+LICENSE. JUCE's notices are provided in JUCE-LICENSE.md.
+
+SoundeeEndpointSetup includes Equalizer APO sources under GPLv2 or later.
+Its corresponding source, license and build instructions are included in
+endpoint-setup-source. Other dependency notices are retained there and in JUCE.
+
+Corresponding source and build instructions are available with each release:
+https://github.com/JustApeasantCoder/Soundee/releases
+The source archive includes the pinned JUCE source used for this build.
+The AGPLv3 text is included in AGPL-3.0.txt.

@@ -285,7 +285,13 @@ Run:      pwsh -NoProfile -File scripts/Start.ps1
 Package:  pwsh -NoProfile -File scripts/Package.ps1
 
 Packaging automatically increments VERSION's patch component, builds and tests
-the application, then creates a local portable ZIP. It does not publish.
+the application, then creates a local portable ZIP.
+Installer: pwsh -NoProfile -File scripts/Installer.ps1 -CompilerPath <ISCC.exe>
+This also creates a per-user Windows 10/11 x64 installer and SHA-256 checksums.
+Inno Setup 6.6 or later is required. The installer adds Start menu shortcuts and
+offers an optional desktop shortcut. Equalizer APO setup remains in the app.
+Disable Soundee's system EQ before uninstalling. The uninstaller preserves your
+profiles, settings, Equalizer APO configuration and configuration backups.
 Use -NoVersionBump only when reproducing an existing package version.
 The portable package does not include your personal room-calibration profile.
 Required tests use the public synthetic calibration in tests/fixtures and do
@@ -298,9 +304,10 @@ Dependencies
 -------------
 JUCE is pinned to 9.0.3, commit be29c81492b6151c8ea8d14c840e1311963b3a83.
 CMake uses vendor/JUCE when available, otherwise fetches that commit. JUCE
-offers AGPLv3 or commercial licensing; choose the applicable terms before
-distributing Soundee. CMake copies its license to build/licenses from the actual
+offers AGPLv3 or commercial licensing; this binary distribution uses AGPLv3.
+CMake copies its license to build/licenses from the actual
 JUCE source directory, whether vendored or fetched, for portable packaging.
 SoundeeEndpointSetup uses a pinned GPLv2-or-later subset of Equalizer APO's
 endpoint-installation code. Its corresponding sources, notices, and standalone
-CMake build instructions are included in the portable package.
+CMake build instructions are included in both packages. Release source archives
+include Soundee and the pinned JUCE source needed to reproduce the build.

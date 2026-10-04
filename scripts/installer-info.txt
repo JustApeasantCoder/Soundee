@@ -1,0 +1,11 @@
+Soundee for Windows 10/11 x64
+
+Soundee is installed for your Windows account. Your profiles and settings are
+preserved when upgrading or uninstalling.
+
+System-wide EQ requires Equalizer APO 1.4.2. After installing Soundee, use its
+Audio backend setup to install and attach Equalizer APO to your output device.
+That separate step may require administrator permission and a restart.
+
+Before uninstalling Soundee, disable its system EQ in the application. Soundee's
+uninstaller preserves Equalizer APO, its configuration and configuration backups.

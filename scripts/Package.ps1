@@ -26,6 +26,9 @@ try {
     Copy-Item -LiteralPath (Join-Path $projectRoot 'build\Soundee_artefacts\Release\SoundeeDSP.dll') -Destination $destination
     Copy-Item -LiteralPath (Join-Path $projectRoot 'build\Soundee_artefacts\Release\SoundeeBackendProbe.exe') -Destination $destination
     Copy-Item -LiteralPath (Join-Path $projectRoot 'README.txt') -Destination $destination
+    foreach ($notice in @('LICENSE', 'DISTRIBUTION.txt', 'AGPL-3.0.txt')) {
+        Copy-Item -LiteralPath (Join-Path $projectRoot $notice) -Destination $destination
+    }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\user-guide.txt') -Destination $destination
     Copy-Item -LiteralPath (Join-Path $projectRoot 'build\licenses\JUCE-LICENSE.md') -Destination (Join-Path $destination 'JUCE-LICENSE.md')
     $helperSource = Join-Path $destination 'endpoint-setup-source'

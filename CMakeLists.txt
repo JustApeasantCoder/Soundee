@@ -3,6 +3,10 @@ file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" SOUNDEE_VERSION LIMIT_COUNT 1
 project(Soundee VERSION ${SOUNDEE_VERSION} LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(MSVC)
+    # Packages must also run on machines without the Visual C++ redistributable.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendor/JUCE/CMakeLists.txt")
     add_subdirectory(vendor/JUCE EXCLUDE_FROM_ALL)
 else()
