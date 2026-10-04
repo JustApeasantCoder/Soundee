@@ -1,0 +1,306 @@
+Soundee - speaker and headphone equalization
+=======================
+
+Soundee starts with a flat response when no calibration is provided. Use
++ Import calibration or drag a SoundID .swproj onto the window to import one.
+This version supports the PEQb v3 stereo layout verified in Yamaha HS8.swproj:
+four 355-point curves spanning 20 Hz to 22 kHz. Other versions fail with a
+readable error. Soundee never modifies the imported profile.
+
+The green L/R curves show the combined applied EQ: calibration correction plus
+custom EQ, before headroom attenuation. The pink curve shows custom EQ alone.
+The numbered pink points control individual bands; faint curves show each
+enabled band's contribution. During bypass the green
+curves become flat. Curves 1 and 2 of a calibration are treated as left and
+right; the More menu contains Swap left / right, exports, and Diagnostics.
+Compare with SoundID on your setup to confirm the channel assignment.
+
+The controls are grouped into Custom EQ, Calibration, and Output & protection.
+Calibration controls are available only for profiles with a loaded calibration.
+Hover over a control to learn what it changes. Double-click a slider to restore
+its default value; click its value field to type an exact value. Scrolling over
+a slider does not change it. Scrolling over the graph still adjusts band Q.
+The More menu groups profile actions, exports and backups, tools, and app settings.
+
+Custom parametric EQ
+--------------------
+Click an empty area of the graph or + Add band to add a Bell band. Drag a numbered
+point horizontally to change its frequency and vertically to change gain.
+Select a point or choose a band in the dropdown, then select Bell, Low Shelf,
+or High Shelf and adjust Frequency, Gain, and Q. Scroll over the graph to
+change the selected band's Q. Shelf frequency is its centre, where gain is
+half the shelf's nominal gain. At high Q, shelves can produce resonance.
+
+Up to 12 bands are supported, with 20 Hz-20 kHz frequency, +/-18 dB gain, and
+Q 0.2-12. Disable Enabled to bypass one band, Custom EQ to bypass all
+custom bands, or Remove to delete the selected band. The band settings remain
+when disabled. Custom EQ is an additional filter; calibration amount, boost
+limits, and calibration range apply to the imported correction only.
+
+Custom filters work without calibration. On import, a new calibrated preset
+inherits the current custom EQ and output link. Calibration files are never
+modified. FIR export and Windows-wide EQ include custom EQ; Windows
+uses native Bell and centre-frequency shelf filters after the stereo correction.
+
+Listening profiles and automatic switching
+-----------------------------------------
+The left sidebar lists listening profiles and their linked Windows outputs.
+Click a profile to select it. Use Playback device to associate it with
+your speaker or headphone device. + Flat profile creates an uncalibrated
+preset. The More menu can rename or remove a profile. Each preset saves its own
+calibration path, correction controls, custom bands, limiter, headroom and output
+link. Duplicate profile creates an independent copy of these settings.
+
+Follow Windows output is enabled by default. Soundee listens for Windows output
+notifications, with periodic fallback checks, and
+selects the most recently used profile linked to that endpoint. New outputs
+receive a flat profile. Headphones never inherit the speaker room calibration.
+If a saved calibration cannot be loaded, that profile uses flat correction
+plus its own custom EQ, while preserving the original path for recovery.
+
+Turning Follow Windows output off keeps the selected profile. Choosing a
+profile does not change the Windows default device. Existing headphone outputs
+start with flat placeholders; their calibration can be imported later.
+
+Meters and clipping
+--------------------
+The right panel shows independent left/right true-peak estimates in dBTP,
+with peak hold and numeric levels. At 0 dBTP or above, the corresponding red
+CLIP indicator latches; click the indicators to reset. Yellow marks the top
+6 dB and red the top 1 dB. Four-times, 64-tap reconstruction detects peaks
+between samples. This is an estimate, without a formal standards certification.
+
+When Soundee's native DSP is processing the current configuration, the meter
+reads telemetry immediately after Soundee EQ and its limiter. EQ stream output
+means a pre-mix installation: the displayed peak is the highest individual
+stream, rather than the sum of applications. EQ output means post-mix.
+The More menu's Meter combined Windows output selects WASAPI loopback instead. Soundee also
+uses loopback when native telemetry is unavailable; the label identifies the
+source. Loopback reads the selected endpoint's shared-mode mix, including
+applications such as Spotify, and does not save recordings. Its position
+relative to driver effects varies by device. Later effects and hardware clipping
+cannot be established by either meter.
+
+Optional limiter
+----------------
+Enable Limiter to add stereo-linked gain reduction after correction, custom EQ
+and applied headroom. Ceiling ranges from -12 to 0 dBFS and defaults to -1 dBFS.
+The meter shows current gain reduction. The limiter uses true-peak-aware
+lookahead, a reconstruction margin and a hard sample ceiling. Enabled latency
+is about 6.3 ms at 48 kHz; disabled processing is transparent with no added delay.
+It does not guarantee a true-peak ceiling for every downstream reconstruction.
+
+The limiter follows the installed APO stage. On pre-mix-only outputs, including
+the tested Audient EVO 4, it limits each application stream separately. Several
+streams mixed together can exceed the ceiling. Use Meter combined Windows output to inspect
+that combined output. Limiter state and ceiling are saved per listening profile;
+bypass disables the limiter while retaining the same headroom.
+
+Correction amount changes calibration strength from 0% to 100%. Maximum boost bounds positive
+gain; negative correction is bounded at -24 dB. Correct from and Correct up to set the
+full-correction band, with a cosine fade across one octave outside each edge.
+The default is 40 Hz to 16 kHz with at most +6 dB boost.
+
+Headroom offset
+----------------
+Output & protection contains Output gain offset (the headroom offset), ranging
+from -24 to +24 dB in 0.1 dB
+steps. It is saved independently for each listening profile and defaults to
+0 dB, including older profiles. Double-click the slider to reset it to zero.
+
+Applied headroom = automatic headroom + Output gain offset. Positive values raise output
+level by reducing attenuation; negative values add attenuation. For example,
+-13 dB automatic headroom with +4 dB offset becomes -9 dB applied headroom.
+The Automatic and Applied values are shown beside the slider. The offset can
+raise the final gain above 0 dB; positive offsets reduce clipping protection.
+
+Automatic headroom is shared by both channels. It measures the highest positive
+gain in the combined calibration and enabled custom EQ at the selected output's
+sample rate, then reserves that gain plus 1 dB. Maximum boost only bounds the
+calibration curve; it is not an additional headroom reservation. Cancelling
+bands and peaks at different frequencies do not add unnecessary attenuation.
+An uncalibrated flat preset with no custom boosts has 0 dB automatic headroom.
+The offset adjusts this automatic value without changing the EQ curve.
+For example, a combined +7 dB peak gives -8 dB automatic headroom, even when
+Maximum boost is set to 12 dB.
+
+The applied value is included once in Windows EQ, manual EQ exports and stereo
+FIR exports. Bypass retains the same headroom and offset for comparison.
+Zero correction amount removes calibration correction while leaving custom
+EQ active. Headroom is not a brickwall limiter; transients can still overshoot.
+Soundee does not include an audio player or open an audio playback stream.
+
+Editing, A/B and portable backups
+---------------------------------
+Undo and Redo restore the complete EQ settings for the current profile.
+Ctrl+Z undoes; Ctrl+Y or Ctrl+Shift+Z redoes. Each slider or graph drag is one
+edit. Histories remain independent while switching profiles during a session.
+
+Click an empty A or B button to store the current controls, then click the
+buttons to recall a snapshot. Save snapshot lets you overwrite either snapshot. Both
+snapshots include correction, bands, headroom and limiter settings and are saved
+with the profile. Profiles can use A/B independently.
+
+Imported calibration files are copied into %LOCALAPPDATA%\Soundee\calibrations
+and verified by SHA-256. Soundee uses that private copy and leaves the original
+unchanged. Existing external calibration paths are retained on selection.
+Moving the original afterward will not break a successfully retained preset.
+
+The More menu's Export current profile writes a portable .soundee archive;
+Back up all profiles includes the whole library. The archive contains original
+calibration bytes, EQ controls, output links and A/B snapshots. Import profile
+backup or drop a .soundee file onto Soundee to add copies with new profile IDs.
+Import merges with the current library. Output links may need reassignment on
+a different computer. Invalid archives leave the library unchanged.
+
+Windows-wide equalization
+--------------------------
+Open System-wide EQ. Choose the Windows playback device used by your speakers
+or headphones. Soundee requires Equalizer APO 1.4.2; Audio backend setup
+downloads its official installer and checks a pinned SHA-256 before launching
+it. Complete the installer and its Device Selector. On an installed backend,
+Audio backend setup opens Device Selector for troubleshooting.
+
+Enable / update EQ attaches APO to the selected output if needed, using the
+native setup helper and Windows' administrator prompt. It preserves the
+driver's original effects using APO's own installation code and registry
+backups. Newly attached effects may require restarting Windows audio or
+Windows. Soundee does not restart audio, reboot, or change the default output.
+Ensure the applications you want to calibrate use the selected speaker output.
+
+The configuration selects the endpoint by GUID, applies separate L/R curves
+and linked headroom once in an installed APO stage. It prefers post-mix when
+available and uses pre-mix for pre-mix-only installations. It updates when
+you change the profile, correction controls, custom EQ, headroom offset, limiter, channel
+swap, or bypass. Bypass keeps applied headroom for comparison. System EQ
+continues working when Soundee closes.
+
+Soundee manages one output at a time. Switching profiles or Windows outputs
+replaces its device-specific correction. Automatic switching applies to outputs
+that already have APO attached with Windows enhancements enabled. For a new
+output, select it in System-wide EQ and enable it once; automatic switching
+does not start installers or administrator prompts. Selecting an unavailable
+or unconfigured output removes Soundee's prior correction and asks for setup.
+Automatic profile following stops when Soundee closes, while the last applied
+EQ continues working. Disable system EQ removes only its own include
+block. Other APO filters remain; avoid stacking another room calibration on
+the same output. The exact factory demo shipped by APO is disabled on first
+activation and saved in the backup, so it is not stacked with your profile.
+
+The managed correction is in <APO config folder>/Soundee/active.txt. Exact
+config.txt backups are in Soundee/backups. Updates replace files atomically;
+damaged/duplicate blocks and unsupported encodings fail without rewriting the
+main configuration. Use the backup for a complete manual restoration.
+
+ASIO, exclusive playback, and raw audio streams may bypass Windows effects.
+Hardware compatibility and audible transfer still require verification on the
+actual speaker interface. Soundee does not currently provide a DAW plugin or
+virtual audio driver, and a saved configuration is not proof that the Windows
+audio engine loaded the effect.
+
+SoundeeDSP.dll is deployed under a hash-versioned filename in the managed APO
+folder. It supplies processing telemetry and the optional limiter. The status
+EQ processing confirmed requires a recent heartbeat matching the current
+configuration. Configured / awaiting audio means the configuration exists but
+processing has not yet been observed. Audio detected / EQ unconfirmed means
+loopback audio is present without that matching native heartbeat. Bypass
+processing is shown separately. These statuses confirm Soundee's stage, rather
+than every driver effect or every playback mode.
+
+The More menu contains Export Windows EQ for manually managed APO installations;
+exported files do not follow subsequent control changes automatically. A manual
+export with Limiter enabled includes a companion native DSP library; keep that
+library beside the exported configuration.
+
+Tray and Windows startup
+-------------------------
+Closing the window normally hides it in the system tray, so device following
+continues. Click the tray icon to reopen. Its right-click menu offers Open,
+Bypass, Start with Windows and Exit. The More menu can turn Close to tray off.
+Exit stops the controller while the last system EQ configuration remains active.
+Start with Windows is opt-in and registers this executable for the current user;
+it starts hidden with --background. Re-enable it after moving the application.
+
+Verification and SoundID comparison
+-----------------------------------
+Verify installed EQ backend in the More menu runs the installed APO against
+in-memory test tones using an isolated configuration. It does not play audio,
+change the Windows output or rewrite the active EQ. It checks both channels
+against a reference of the native correction and parametric filters, and reports
+the largest error. It separately reports deviation from the ideal graph: the
+native 16384-tap correction can differ around narrow low-frequency features.
+Result files are saved beneath the diagnostic logs folder.
+
+This check proves the backend can render those filters in the isolated test.
+The processing heartbeat proves live audio traverses Soundee's configured DSP.
+Neither establishes identical SoundID phase, delay, limiting or audible transfer.
+
+Compare with SoundID opens a recording comparison tool. Create test WAV writes
+10 seconds of low-level stereo white noise; play it in another application.
+Capture the complete test once with SoundID active and Soundee bypassed, then
+once with Soundee active and SoundID bypassed. Use the same output, capture
+point, sample rate and recording settings. Avoid additional EQ or clipping.
+Import the two stereo WAVs. One global level difference is removed equally
+from L/R; the graph shows Soundee minus SoundID across 30 Hz-16 kHz, preserving
+channel imbalance. Export comparison CSV saves the result. The tool accepts
+32-192 kHz stereo WAVs between 131072 and 8 million frames. It measures
+frequency-response differences, not phase or subjective similarity.
+
+FIR export
+-----------
+The More menu's Export stereo FIR writes one 32-bit floating-point stereo WAV impulse response at the
+selected output sample rate (48 kHz when unavailable). It includes applied
+headroom and its offset and preserves
+relative channel gain; do not independently normalize the channels. Use it in
+a stereo convolver. FIR export contains the linear EQ and headroom only; the
+nonlinear limiter is not part of an impulse response. The filter is minimum
+phase with 16384 taps; graph matching
+does not establish identical SoundID phase, latency, gain/delay compensation,
+or output-limiting behavior.
+
+Saved settings and diagnostics
+-------------------------------
+Profile selection, correction controls, custom EQ, headroom offset, limiter,
+A/B snapshots and output
+links persist in Soundee's
+per-user settings. Diagnostics opens %LOCALAPPDATA%\Soundee\logs. Logs use the
+DeeBugee v1 JSONL schema, one application session per run, a bounded 2048-event
+queue, and one 50 MB active file plus one archive. Meter sample processing does not log.
+
+If saved profile data is damaged, Soundee preserves the original JSON in a
+profile-recovery folder beside Soundee.settings before starting a fresh library.
+New profiles and imported backups then save normally. If the recovery backup
+cannot be written, EQ editing is disabled and imports report an error until
+the settings folder is writable; the original data is kept.
+
+If you change profiles, output links, or the Windows playback device while
+endpoint setup is pending, Soundee finishes the attachment but cancels the
+obsolete EQ activation. Enable EQ again for the current profile/device.
+
+Development
+------------
+Build:    pwsh -NoProfile -File scripts/Build.ps1
+Test:     ctest --preset release
+Run:      pwsh -NoProfile -File scripts/Start.ps1
+Package:  pwsh -NoProfile -File scripts/Package.ps1
+
+Packaging automatically increments VERSION's patch component, builds and tests
+the application, then creates a local portable ZIP. It does not publish.
+Use -NoVersionBump only when reproducing an existing package version.
+The portable package does not include your personal room-calibration profile.
+Required tests use the public synthetic calibration in tests/fixtures and do
+not require personal calibration data. Optional private-profile validation is
+described in tests/fixtures/README.txt.
+Keep Soundee.exe, SoundeeDSP.dll, SoundeeBackendProbe.exe and
+SoundeeEndpointSetup.exe together.
+
+Dependencies
+-------------
+JUCE is pinned to 9.0.3, commit be29c81492b6151c8ea8d14c840e1311963b3a83.
+CMake uses vendor/JUCE when available, otherwise fetches that commit. JUCE
+offers AGPLv3 or commercial licensing; choose the applicable terms before
+distributing Soundee. CMake copies its license to build/licenses from the actual
+JUCE source directory, whether vendored or fetched, for portable packaging.
+SoundeeEndpointSetup uses a pinned GPLv2-or-later subset of Equalizer APO's
+endpoint-installation code. Its corresponding sources, notices, and standalone
+CMake build instructions are included in the portable package.

@@ -1,0 +1,72 @@
+Yamaha HS8.swproj - verified extraction
+
+The source profile is unchanged. This is a data extraction, not a decompilation
+of the SoundID application or a complete reconstruction of its DSP behavior.
+
+Observed container layout (absolute offsets, zero based):
+  0..371:       XML ProjectHeader, version 3.0.0.0
+  372:          ESC separator byte (0x1b)
+  373..34564:   34192-byte PEQb block, binary version 3
+  34565..end:   14786368-byte opaque project payload, not decoded
+
+PEQb layout, relative to the beginning of the block:
+  0: 4-byte ASCII magic PEQb
+  4: little-endian uint32 version (3)
+  8: little-endian uint32 curve count (4)
+  12: first curve
+  Each curve:
+    uint32 curve ID
+    float64 scalar 1, meaning unverified
+    float64 scalar 2, meaning unverified
+    uint32 point count (355)
+    355 triples of float64: frequency Hz, value dB, third value (unverified)
+  Following all curves: four zero bytes
+  Curve record offsets: 12, 8556, 17100, 25644
+  Point-array offsets: 36, 8580, 17124, 25668
+
+All binary numbers are little endian. Frequency points span 20..22000 Hz.
+All four curves use identical grids. Curve 3 is the exact sign inverse of
+curve 1 for both the dB value and third value. Curve 4 similarly inverts curve 2.
+
+Scalar 1 by curve ID:
+  1: -0.663926
+  2:  0
+  3: -6.29195
+  4: -6.955876
+Scalar 2 is zero in all four curves. Do not assume these are gains or delays.
+
+Interpretation, pending a comparison with SoundID:
+  Curves 1 and 2 likely describe correction; curves 3 and 4 likely describe
+  measured response. The rolloff at both spectrum ends is consistent with
+  that interpretation. Left/right assignment is not established from metadata.
+  The exact inverse-pair relationship is verified; the roles are inferred.
+
+Files:
+  profile.json: raw decoded fields, curves, offsets, source hash, caveats
+  curve_1.csv through curve_4.csv: raw numeric triples with column headers
+  project_header.xml: readable container header
+  tools/profiles/decode_swproj.py: Python decoder for this observed v3 layout
+
+Re-run from the Soundee folder:
+  python tools/profiles/decode_swproj.py
+The default input is assets/profiles/raw/Yamaha HS8.swproj.
+The default output is assets/profiles/decoded/yamaha-hs8/.
+An explicit input and --outdir are also supported.
+
+Building a calibration engine:
+  Load the profile, select/validate the stereo correction curves, implement
+  target and frequency limits, choose a boost limit and headroom policy,
+  design FIR or IIR filters at the playback sample rate, and apply separate
+  filters to the two audio channels. Establish channel gain/delay separately.
+  Compare the resulting transfer function with SoundID before claiming parity.
+  A magnitude curve alone does not specify phase, latency or exact filter taps.
+
+Raw curve 2 reaches +25.670045716205095 dB. That is extracted data, not a
+recommendation to boost the speaker by that amount. Playback requires a
+deliberate boost-limit/headroom policy, especially near speaker rolloff.
+
+Decoder scope:
+  Only the observed PEQb v3/four-curve/355-point layout is accepted. Newer
+  .swproj formats may use other encodings. The opaque payload, original
+  measurement locations, microphone metadata, and application project state
+  remain undecoded. No audio routing, installation or playback was performed.

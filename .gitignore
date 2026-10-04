@@ -1,0 +1,29 @@
+# C++ build products and local IDE state
+/build/
+/out/
+/.vs/
+CMakeUserPresets.json
+
+# Python utility caches
+__pycache__/
+*.pyc
+
+# Room calibration fixtures are personal data; keep them local.
+/assets/profiles/raw/*
+/assets/profiles/decoded/*
+/vendor/
+/dist/
+/.mallee/
+/.deebugee/
+/logs/
+
+# Local editor state and credentials
+/.idea/
+/.vscode/
+*.user
+*.suo
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
