@@ -8,6 +8,7 @@
 #include "EqHistory.h"
 #include "NativeBridge.h"
 #include "UiStyle.h"
+#include <functional>
 #include <map>
 
 namespace soundee {
@@ -30,6 +31,8 @@ public:
     juce::var runBackendVerificationChecks(const juce::File&, const juce::File&);
     bool keyPressed(const juce::KeyPress&) override;
     bool closesToTray() const { return closeToTray; }
+    void setCloseToTray(bool enabled);
+    std::function<void(const juce::String& profileName, const juce::String& outputName)> onAutomaticProfileChanged;
     void toggleBypass();
     juce::String trayDescription() const;
     void recordDesktopEvent(const juce::String&, const juce::String&);
@@ -61,7 +64,7 @@ private:
     void runReviewRegressionChecks(const juce::File&);
     void saveSelectedPreset();
     void selectPreset(int, bool automatic = false);
-    void addFlatPreset(const OutputEndpoint& = {});
+    void addFlatPreset(const OutputEndpoint& = {}, bool automatic = false);
     void rebuildProfileList();
     void handleDefaultOutput(const OutputEndpoint&);
     void syncPresetOutput();

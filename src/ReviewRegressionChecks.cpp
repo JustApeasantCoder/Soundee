@@ -9,6 +9,34 @@ void MainComponent::runReviewRegressionChecks(const juce::File& folder) {
     require(noDevice, "Review regressions require isolated headless components");
     folder.createDirectory();
     {
+        MainComponent switching(true, folder.getChildFile("notifications/logs")); switching.stopTimer();
+        OutputEndpoint speakers, headphones, newOutput;
+        speakers.guid = "speakers"; speakers.name = "Speakers";
+        headphones.guid = "headphones"; headphones.name = "Headphones";
+        newOutput.guid = "new-output"; newOutput.name = "New output";
+        switching.library.selected()->outputGuid = speakers.guid;
+        switching.library.selected()->outputName = speakers.name;
+        switching.addFlatPreset(headphones); switching.selectPreset(0);
+        switching.lastDefaultGuid = speakers.guid; switching.library.followWindows = true;
+        int notifications = 0; juce::String notifiedProfile, notifiedOutput;
+        switching.onAutomaticProfileChanged = [&](const juce::String& profileName, const juce::String& outputName) {
+            ++notifications; notifiedProfile = profileName; notifiedOutput = outputName;
+            require(switching.library.selected()->name == profileName && switching.profile->name == profileName,
+                "Automatic notification arrived before profile selection completed");
+        };
+        switching.handleDefaultOutput(headphones);
+        require(notifications == 1 && notifiedProfile == "Flat response" && notifiedOutput == "Headphones", "Automatic profile notification missing or wrong");
+        switching.handleDefaultOutput(headphones); switching.selectPreset(1, true);
+        require(notifications == 1, "Unchanged profile emitted another notification");
+        switching.selectPreset(0); switching.addFlatPreset();
+        require(notifications == 1, "Manual profile changes emitted automatic notifications");
+        switching.handleDefaultOutput(newOutput);
+        require(notifications == 2 && notifiedOutput == "New output", "Automatically created flat profile did not notify");
+        switching.library.followWindows = false; switching.handleDefaultOutput(speakers);
+        require(notifications == 2, "Follow Windows off emitted a profile notification");
+        switching.onAutomaticProfileChanged = {};
+    }
+    {
         MainComponent edit(true, folder.getChildFile("gesture/logs")); edit.stopTimer();
         edit.addEqBand(1000, 0); edit.rebuild();
         const auto graph = edit.graphBounds();
@@ -93,6 +121,7 @@ void MainComponent::runReviewRegressionChecks(const juce::File& folder) {
     }
     require(folder.getChildFile("result.json").replaceWithText(juce::JSON::toString(fields({{"passed", true},
         {"paused_graph_drag_undo_redo", true}, {"profile_recovery_survives_restart", true}, {"failed_recovery_blocks_mutations", true},
-        {"stale_endpoint_activation_rejected", true}, {"limiter_status_matches_configuration", true}}))), "Cannot save review regression results");
+        {"stale_endpoint_activation_rejected", true}, {"limiter_status_matches_configuration", true},
+        {"automatic_profile_notifications", true}}))), "Cannot save review regression results");
 }
 }

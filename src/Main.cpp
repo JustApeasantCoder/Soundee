@@ -6,6 +6,13 @@
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
+#if JUCE_WINDOWS
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 namespace soundee {
 void require(bool condition, const char* reason) { if (!condition) throw std::runtime_error(reason); }
@@ -159,12 +166,7 @@ public:
             auto notifications = std::make_shared<EndpointNotifications>();
             const auto startup = StartupRegistration::runChecks(folder);
             juce::Timer::callAfterDelay(1000, [this, folder, startup, notifications] {
-                window->closeButtonPressed();
-                const auto passed = tray && tray->getNativeHandle() && !window->isVisible() && static_cast<bool>(startup["passed"]);
-                folder.getChildFile("desktop-result.json").replaceWithText(juce::JSON::toString(fields({{"passed", passed},
-                    {"native_tray_handle", tray && tray->getNativeHandle()}, {"close_hides_window", !window->isVisible()},
-                    {"endpoint_notifications_registered", notifications->registered()}, {"startup_test", startup}, {"live_eq_preserved", true}})));
-                setApplicationReturnValue(passed ? 0 : 1); quit();
+                runDesktopChecks(folder, startup, notifications->registered());
             }); return;
         }
         if (args.size() >= 4 && args[0] == "--compare-recordings") {
@@ -268,7 +270,7 @@ public:
         auto args = juce::StringArray::fromTokens(command, true); args.removeEmptyStrings();
         if (args.size() == 1 && args[0].unquoted().endsWithIgnoreCase(".swproj"))
             static_cast<MainComponent*>(window->getContentComponent())->loadProfile(juce::File(args[0].unquoted()));
-        if (!args.contains("--background")) { window->setVisible(true); window->toFront(true); }
+        if (!args.contains("--background")) showWindow();
     }
 private:
     class Window : public juce::DocumentWindow {
@@ -280,9 +282,21 @@ private:
             centreWithSize(getWidth(), getHeight()); setVisible(!hidden);
         }
         void closeButtonPressed() override {
+            if (hideToTray("Window closed to tray; profile following continues")) return;
+            juce::JUCEApplication::getInstance()->systemRequestedQuit();
+        }
+        void minimiseButtonPressed() override {
+            if (!hideToTray("Window minimized to tray; profile following continues")) DocumentWindow::minimiseButtonPressed();
+        }
+        void minimisationStateChanged(bool minimised) override {
+            // Native Windows titlebar buttons bypass minimiseButtonPressed().
+            if (minimised) hideToTray("Window minimized to tray; profile following continues");
+        }
+    private:
+        bool hideToTray(const juce::String& message) {
             auto* component = static_cast<MainComponent*>(getContentComponent());
-            if (component && component->closesToTray()) { setVisible(false); component->recordDesktopEvent("desktop.window.hidden", "Window closed to tray; profile following continues"); }
-            else juce::JUCEApplication::getInstance()->systemRequestedQuit();
+            if (!component || !component->closesToTray()) return false;
+            setVisible(false); component->recordDesktopEvent("desktop.window.hidden", message); return true;
         }
     };
     class Tray : public juce::SystemTrayIconComponent {
@@ -291,12 +305,23 @@ private:
             const auto icon = juce::ImageCache::getFromMemory(BinaryData::soundee_png, BinaryData::soundee_pngSize).rescaled(32, 32);
             setIconImage(icon, icon); setIconTooltip("Soundee");
         }
-        void mouseUp(const juce::MouseEvent& event) override {
-            if (!event.mods.isPopupMenu()) { app.showWindow(); return; }
+        void mouseDown(const juce::MouseEvent& event) override {
+            // Windows tray mouse-up events have already lost their button flags.
+            if (event.mods.isPopupMenu()) showMenu();
+            else if (event.mods.isLeftButtonDown()) app.showWindow();
+        }
+        void showProfileNotification(const juce::String& profileName, const juce::String& outputName) {
+            showInfoBubble("Soundee profile changed", profileName.substring(0, 150)
+                + (outputName.isNotEmpty() ? "\n" + outputName.substring(0, 100) : juce::String()));
+            if (app.window) static_cast<MainComponent*>(app.window->getContentComponent())->recordDesktopEvent(
+                "desktop.profile.notification", "Automatic profile change notification requested");
+        }
+    private:
+        void showMenu() {
             juce::PopupMenu menu; menu.addItem(1, "Open Soundee"); menu.addItem(2, "Toggle EQ bypass");
             menu.addItem(3, "Start with Windows", true, StartupRegistration::enabled()); menu.addSeparator(); menu.addItem(4, "Exit Soundee");
             auto safe = juce::Component::SafePointer<Tray>(this);
-            menu.showMenuAsync(juce::PopupMenu::Options(), [safe](int item) {
+            menu.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea({juce::Desktop::getMousePosition(), {1, 1}}), [safe](int item) {
                 if (!safe) return; auto& app = safe->app;
                 if (item == 1) app.showWindow();
                 if (item == 2 && app.window) static_cast<MainComponent*>(app.window->getContentComponent())->toggleBypass();
@@ -308,11 +333,55 @@ private:
                 if (item == 4) app.quit();
             });
         }
-    private:
         App& app;
     };
-    void createTray() { tray = std::make_unique<Tray>(*this); }
-    void showWindow() { if (window) { window->setVisible(true); window->toFront(true); static_cast<MainComponent*>(window->getContentComponent())->recordDesktopEvent("desktop.window.shown", "Window reopened"); } }
+    void createTray() {
+        tray = std::make_unique<Tray>(*this);
+        if (window) static_cast<MainComponent*>(window->getContentComponent())->onAutomaticProfileChanged =
+            [safe = juce::Component::SafePointer<Tray>(tray.get())](const juce::String& profileName, const juce::String& outputName) {
+                if (safe) safe->showProfileNotification(profileName, outputName);
+            };
+    }
+    void runDesktopChecks(const juce::File& folder, const juce::var& startup, bool endpointsRegistered) {
+        auto report = fields({{"passed", false}, {"endpoint_notifications_registered", endpointsRegistered},
+            {"startup_test", startup}, {"live_eq_preserved", true}});
+        try {
+            require(tray && tray->getNativeHandle(), "Native tray icon missing");
+            report.getDynamicObject()->setProperty("native_tray_handle", true);
+#if JUCE_WINDOWS
+            // Use the same native callback messages as Explorer. In particular,
+            // JUCE removes all mouse-button modifiers from WM_RBUTTONUP.
+            const auto* icon = static_cast<const NOTIFYICONDATAW*>(tray->getNativeHandle());
+            const auto click = [&](UINT button) { SendMessageW(icon->hWnd, icon->uCallbackMessage, icon->uID, button); };
+            const auto minimise = [&] { SendMessageW(static_cast<HWND>(window->getWindowHandle()), WM_SYSCOMMAND, SC_MINIMIZE, 0); };
+            auto* component = static_cast<MainComponent*>(window->getContentComponent());
+            showWindow(); minimise();
+            require(!window->isVisible(), "Native Minimize did not hide to tray");
+            report.getDynamicObject()->setProperty("native_minimize_hides_window", true);
+            click(WM_LBUTTONDOWN); click(WM_LBUTTONUP);
+            require(window->isVisible() && !window->isMinimised(), "Tray left-click did not restore a minimized window");
+            report.getDynamicObject()->setProperty("tray_click_restores_window", true);
+            window->closeButtonPressed(); require(!window->isVisible(), "Close did not hide to tray");
+            report.getDynamicObject()->setProperty("close_hides_window", true);
+            click(WM_RBUTTONDOWN); click(WM_RBUTTONUP);
+            require(juce::Component::getCurrentlyModalComponent() && !window->isVisible(), "Tray right-click did not open its menu without reopening the window");
+            report.getDynamicObject()->setProperty("native_tray_right_click_menu", true);
+            juce::PopupMenu::dismissAllActiveMenus();
+            component->setCloseToTray(false); showWindow(); minimise();
+            require(window->isVisible() && window->isMinimised(), "Tray option off did not preserve taskbar minimization");
+            report.getDynamicObject()->setProperty("tray_disabled_minimizes_to_taskbar", true);
+            showWindow(); require(window->isVisible() && !window->isMinimised(), "Reopening did not clear taskbar minimization");
+            component->setCloseToTray(true); window->minimiseButtonPressed();
+            require(!window->isVisible(), "Minimize callback did not hide to tray");
+            report.getDynamicObject()->setProperty("minimize_callback_hides_window", true);
+#endif
+            require(static_cast<bool>(startup["passed"]), "Startup registration regression");
+            report.getDynamicObject()->setProperty("passed", true);
+        } catch (const std::exception& error) { report.getDynamicObject()->setProperty("reason", error.what()); }
+        folder.getChildFile("desktop-result.json").replaceWithText(juce::JSON::toString(report));
+        setApplicationReturnValue(static_cast<bool>(report["passed"]) ? 0 : 1); quit();
+    }
+    void showWindow() { if (window) { window->setMinimised(false); window->setVisible(true); window->toFront(true); static_cast<MainComponent*>(window->getContentComponent())->recordDesktopEvent("desktop.window.shown", "Window reopened"); } }
     void timerCallback() override { if (tray && window) tray->setIconTooltip(static_cast<MainComponent*>(window->getContentComponent())->trayDescription()); }
     std::unique_ptr<Window> window;
     std::unique_ptr<Tray> tray;

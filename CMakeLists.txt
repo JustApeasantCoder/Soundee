@@ -82,6 +82,9 @@ add_test(NAME Soundee.SystemEq COMMAND $<TARGET_FILE:Soundee> --system-eq-test
     "${SOUNDEE_TEST_PROFILE}"
     "${CMAKE_CURRENT_BINARY_DIR}/qa")
 set_tests_properties(Soundee.SystemEq PROPERTIES TIMEOUT 60)
+add_test(NAME Soundee.Desktop COMMAND $<TARGET_FILE:Soundee> --desktop-smoke
+    "${CMAKE_CURRENT_BINARY_DIR}/qa-desktop")
+set_tests_properties(Soundee.Desktop PROPERTIES TIMEOUT 30)
 set(SOUNDEE_PERSONAL_PROFILE "" CACHE FILEPATH "Optional private calibration profile for additional local validation")
 if(SOUNDEE_PERSONAL_PROFILE)
     add_test(NAME Soundee.PersonalProfile COMMAND $<TARGET_FILE:Soundee> --self-test

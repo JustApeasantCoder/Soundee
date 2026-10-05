@@ -214,9 +214,12 @@ library beside the exported configuration.
 
 Tray and Windows startup
 -------------------------
-Closing the window normally hides it in the system tray, so device following
-continues. Click the tray icon to reopen. Its right-click menu offers Open,
-Bypass, Start with Windows and Exit. The More menu can turn Close to tray off.
+Minimize and Close hide the window in the system tray when Minimize and close
+to tray is enabled in the More menu, so device following continues. Click the
+tray icon to reopen. Its right-click menu offers Open, Bypass, Start with Windows
+and Exit. With this option off, Minimize uses the taskbar and Close exits Soundee.
+Automatic profile changes request a Windows notification naming the profile
+and playback output. Windows notification settings can suppress these messages.
 Exit stops the controller while the last system EQ configuration remains active.
 Start with Windows is opt-in and registers this executable for the current user;
 it starts hidden with --background. Re-enable it after moving the application.

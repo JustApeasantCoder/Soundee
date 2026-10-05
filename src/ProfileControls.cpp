@@ -121,6 +121,7 @@ void MainComponent::rebuildProfileList() {
 }
 void MainComponent::selectPreset(int index, bool automatic) {
     if (index < 0 || index >= getNumRows()) return;
+    const auto previousProfileId = library.selectedId;
     if (pendingProfileId.isNotEmpty() && library.presets[static_cast<size_t>(index)].id != pendingProfileId)
         pendingActivationCancelled = true;
     saveSelectedPreset(); auto chosen = library.presets[static_cast<size_t>(index)];
@@ -160,12 +161,14 @@ void MainComponent::selectPreset(int index, bool automatic) {
         fields({{"profile_id", chosen.id}, {"endpoint_guid", chosen.outputGuid}, {"automatic", automatic},
             {"calibration_available", !profile->flatResponse}, {"custom_bands", static_cast<int>(customBands.size())}}), {}, -1,
         missing ? "calibration_unavailable" : "");
+    if (automatic && library.selectedId != previousProfileId && onAutomaticProfileChanged)
+        onAutomaticProfileChanged(missing ? chosen.name + " (calibration unavailable)" : chosen.name, chosen.outputName);
 }
-void MainComponent::addFlatPreset(const OutputEndpoint& output) {
+void MainComponent::addFlatPreset(const OutputEndpoint& output, bool automatic) {
     if (getNumRows() >= 128) { status = "Up to 128 listening profiles are supported."; return; }
     const auto writable = recoverProfileLibrary(); if (writable.failed()) { showError(writable.getErrorMessage()); return; }
     saveSelectedPreset(); ListeningPreset item; item.outputGuid = output.guid; item.outputName = output.name;
-    library.presets.push_back(std::move(item)); selectPreset(getNumRows() - 1);
+    library.presets.push_back(std::move(item)); selectPreset(getNumRows() - 1, automatic);
 }
 void MainComponent::handleDefaultOutput(const OutputEndpoint& output) {
     if (lastDefaultGuid.equalsIgnoreCase(output.guid)) return;
@@ -176,7 +179,7 @@ void MainComponent::handleDefaultOutput(const OutputEndpoint& output) {
         fields({{"endpoint_guid", output.guid}, {"previous_endpoint_guid", previousGuid}, {"auto_switch", library.followWindows}}));
     if (library.followWindows) {
         const int index = library.forOutput(output.guid);
-        if (index >= 0) selectPreset(index, true); else addFlatPreset(output);
+        if (index >= 0) selectPreset(index, true); else addFlatPreset(output, true);
     }
     rebuildProfileList();
 }
@@ -280,7 +283,7 @@ void MainComponent::showMenu() {
     menu.addItem(7, "Duplicate profile", libraryWritable && getNumRows() < 128);
     menu.addItem(4, "Swap left / right channels", libraryWritable, swapButton.getToggleState());
     menu.addSeparator(); menu.addSectionHeader("Tools & diagnostics"); menu.addItem(3, "Open diagnostic logs"); menu.addItem(11, "Compare SoundID / Soundee recordings"); menu.addItem(12, "Verify installed EQ backend", !verification);
-    menu.addSeparator(); menu.addSectionHeader("App settings"); menu.addItem(13, "Start with Windows", true, StartupRegistration::enabled()); menu.addItem(14, "Close window to tray", true, closeToTray);
+    menu.addSeparator(); menu.addSectionHeader("App settings"); menu.addItem(13, "Start with Windows", true, StartupRegistration::enabled()); menu.addItem(14, "Minimize and close to tray", true, closeToTray);
     menu.addItem(15, "Meter combined Windows output", true, meterWindowsMix);
     auto safe = juce::Component::SafePointer<MainComponent>(this);
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&menuButton), [safe](int item) {
@@ -293,7 +296,7 @@ void MainComponent::showMenu() {
             const auto result = StartupRegistration::setEnabled(!StartupRegistration::enabled());
             if (result.failed()) safe->showError(result.getErrorMessage()); else safe->recordDesktopEvent("desktop.startup.changed", "Windows startup setting updated");
         }
-        if (item == 14) { safe->closeToTray = !safe->closeToTray; safe->saveSettings(); }
+        if (item == 14) safe->setCloseToTray(!safe->closesToTray());
         if (item == 15) { safe->meterWindowsMix = !safe->meterWindowsMix; safe->meterPanel.reset(); safe->saveSettings(); }
         if (item == 5 && safe->library.selected()) {
             auto* dialog = new juce::AlertWindow("Rename profile", "Choose a name for this listening profile.", juce::MessageBoxIconType::NoIcon);

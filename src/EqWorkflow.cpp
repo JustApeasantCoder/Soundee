@@ -113,6 +113,7 @@ juce::String MainComponent::trayDescription() const {
         + (bypassButton.getToggleState() ? "bypassed" : nativeReading.connected ? "processing" : systemState.configured ? "configured" : "off");
 }
 void MainComponent::recordDesktopEvent(const juce::String& name, const juce::String& message) { logs.event("desktop", name, "[Desktop] " + message); }
+void MainComponent::setCloseToTray(bool enabled) { closeToTray = enabled; saveSettings(); }
 juce::String MainComponent::processingDescription() const {
     if (!systemState.configured) return "System EQ off";
     if (!systemOutput.apoInstalled || systemOutput.effectsDisabled || !systemOutput.supports(systemState.stage)) return "Output needs setup | configuration saved";
